@@ -1,0 +1,48 @@
+{
+  "$comment": "P17 — JSON Schema for deterministic run manifests and canonical events. The schema is intentionally minimal: it fixes required keys and simple types to preserve cross-version stability while allowing value evolution. It pairs with tests that separately enforce byte-level canonicalization of JSONL lines.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "implementation/runlog/artifact.schema.json",
+  "title": "Run Manifest and Event Schema",
+  "type": "object",
+  "$defs": {
+	"event": {
+	  "type": "object",
+	  "required": ["ts", "kind", "payload"],
+	  "properties": {
+		"ts": {"type": "integer"},
+		"kind": {"type": "string"},
+		"payload": {"type": "object"}
+	  },
+	  "additionalProperties": false
+	},
+	"manifest": {
+	  "type": "object",
+	  "required": [
+		"model_id",
+		"tokenizer_hash",
+		"decoding",
+		"derived_seed",
+		"session_id",
+		"prompt_id",
+		"item_index",
+		"attempt",
+		"env",
+		"manifest_hash"
+	  ],
+	  "properties": {
+		"model_id": {"type": "string"},
+		"tokenizer_hash": {"type": "string"},
+		"decoding": {"type": "object"},
+		"derived_seed": {"type": "integer"},
+		"session_id": {"type": "string"},
+		"prompt_id": {"type": "string"},
+		"item_index": {"type": "integer"},
+		"attempt": {"type": "integer"},
+		"env": {"type": "object"},
+		"manifest_hash": {"type": "string"}
+	  },
+	  "additionalProperties": false
+	}
+  }
+}
+

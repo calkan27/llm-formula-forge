@@ -1,0 +1,50 @@
+# Feature Proposal Prompt (LLaMA-aware, deterministic, schema-constrained)
+
+## ROLE
+You are a *feature proposer*. Your ONLY job is to propose candidate feature expressions.
+Scoring, gating, units checking, and selection are all done elsewhere.
+
+## INPUTS (substituted by the caller)
+- Variables (ASCII, deterministic order): {{VARIABLES}}          # e.g., x, y, z, t
+- Max proposals this round (budget): {{J_LM}}                    # e.g., 25
+- Optional notes about which variables are angles: {{NOTES}}
+
+## WHAT TO OUTPUT
+Return **exactly one fenced block** (triple backticks with NO language tag) containing
+**one expression per line**, for at most {{J_LM}} lines. **No prose, no comments, no extra text**.
+Do NOT include units or code stubs.
+
+## ALLOWED VOCABULARY (STRICT WHITELIST)
+- Binary ops (function form only):  padd(a,b), psub(a,b), pmul(a,b), pdiv(a,b)
+- Unary funcs:  plog(a), pexp(a), psqrt(a), psin(a), pcos(a), ptanh(a)
+- Fixed small powers (function form only; use exactly these names):
+  pow2(a)  == a**2
+  pow3(a)  == a**3
+  powm1(a) == a**(-1)
+  powm2(a) == a**(-2)
+  powm3(a) == a**(-3)
+- Constants:  pi, E
+- Literals:   simple decimals only if necessary (e.g., 1e-6), otherwise prefer the fixed power forms above
+- Variables:  the provided {{VARIABLES}} only
+- Parentheses: use as needed to make precedence unambiguous
+- ASCII only. Use function forms; no inline '^'.
+
+## HARD CONSTRAINTS
+1) **One expression per line.** No blank lines inside the fence. No duplicates (structurally identical lines).
+2) **Whitelist only.** No other functions, symbols, Unicode, or language markers.
+3) Prefer simple, low-order compositions: additions, subtractions, products, protected division,
+   logs of magnitude via `plog`, exponentials via `pexp` (avoid huge magnitudes), square roots via `psqrt`.
+4) If a variable is an angle (see {{NOTES}}), it is valid to use `psin`/`pcos` on it.
+5) Avoid obviously ill-posed forms (e.g., `pdiv(a,0)`), deep nests, or explosive exponentials/logs.
+6) Keep proposals diverse (not just scalar multiples or trivial variants).
+
+## STYLE HINTS (dimension/typing friendly)
+- Use safe-log patterns like:  plog(padd(psqrt(pmul(x,x)), 1e-12))  to avoid log(0).
+- Use protected division (`pdiv`) instead of bare division.
+- Build interactions with `pmul(a,b)` and optionally gate by `psqrt` or `plog`.
+- Favor small compositions over deep chains.
+
+## OUTPUT
+Produce **at most {{J_LM}} lines** **inside one fence**, using ONLY {{VARIABLES}}, exactly as below (no extra text):
+
+<your expressions here, one per line, at most {{J_LM}} lines>

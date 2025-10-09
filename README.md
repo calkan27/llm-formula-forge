@@ -1,0 +1,254 @@
+# LLM Formula Forge
+
+**Deterministic, Knowledge-Driven Symbolic Formula Discovery**
+
+A complete implementation of a symbolic regression system that discovers concise, interpretable scientific formulas from data while enforcing domain knowledge through dimensional analysis and multi-objective optimization.
+
+## Overview
+
+This project implements a rigorous framework for formula discovery that combines:
+
+- **LLM-guided proposal generation** with deterministic decoding
+- **Formal acceptance criteria** including symbolic certificates and rational-lattice refutation
+- **Protected numeric evaluation** with guards against NaN/Inf
+- **Sound dimensional type system** over SI base units
+- **Canonical complexity functional** with unique normal forms
+- **Calibrated interpretability scoring** with Lipschitz guarantees
+- **2D Pareto frontier** selection in (Complexity, Error) space
+
+The system was evaluated on the Feynman symbolic regression benchmark, achieving 36% exact recovery rate with zero false positives.
+
+## Key Features
+
+### 1. **Protected Numeric Language**
+All primitives (`padd`, `pmul`, `pdiv`, `plog`, `pexp`, `psqrt`, etc.) include explicit guards:
+- Division floors denominators at ε with sign preservation
+- Logarithms use `log(|x| + ε)`
+- Square roots clip to non-negative domain
+- Exponentials clip inputs to prevent overflow
+
+### 2. **Complexity Functional C**
+A canonical measure of expression size with:
+- Deterministic normal form via term rewriting
+- Subadditivity: `C(f(g₁,...,gₘ)) ≤ C(f) + ΣC(gⱼ)`
+- Tiered constant costs (0 for {0,1}, 1 for {π,e,2,-1,½})
+- Consistent across algebraic equivalents
+
+### 3. **Dimensional Type System**
+Sound checker over Z⁷ (M, L, T, I, Θ, N, J):
+- Multiplication/division as group operations on exponents
+- Transcendental functions require dimensionless inputs
+- Rejects inconsistent expressions at parse time
+- Preserves safety under composition
+
+### 4. **Interpretability Score S**
+Five-criterion rubric (structural simplicity, variable semantics, modularity, parameter interpretability, domain behavior) mapped through calibrated logistic:
+- S(x) = σ(a(x-b)) with a ≤ 0.02
+- Global Lipschitz constant L = a/4 ≤ 0.005
+- Monotone increasing in raw score
+
+### 5. **Acceptance Harness**
+Three-stage equality certification:
+1. **Symbolic certificate** (zero false negatives): `simplify(f - g) == 0`
+2. **Rational lattice refutation** (exact arithmetic counterexample search)
+3. **Protected floating probe** with probabilistic miss bound
+
+### 6. **Population Scheduler**
+Steady-state evolution with:
+- Deduplication via canonical structural keys + numeric fingerprints
+- Budget-aware LLM proposal allocation
+- Stable survivor selection by scalarized loss
+- ε-Pareto frontier in (C,E) via O(n log n) sweep
+
+## Installation
+
+```bash
+# Clone repository
+
+git clone https://github.com/CALKAN27/llm_formula_forge.git
+cd llm_formula_forge
+
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # or `.venv\Scripts\activate` on Windows
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+**Requirements:**
+- Python ≥3.11
+- SymPy ≥1.12
+- NumPy ≥1.24
+- pandas, scipy, scikit-learn
+- **Ollama** with llama3.1 model:
+  - Install Ollama from [ollama.ai](https://ollama.ai)
+  - Pull the model: `ollama pull llama3.1`
+  - Ensure Ollama server is running and reachable at `http://127.0.0.1:11434`
+
+## Project Structure
+
+```
+implementation/          # Production code (included in repo)
+├── acceptance/         # Three-stage acceptance harness
+├── complexity/         # Canonical complexity functional C
+├── feature_selection/  # MI ranking + mRMR diversity
+├── interpretability/   # S-score calibration + rubric
+├── io/                 # Feynman loader, SymPy utils
+├── loss/               # Normalized multi-objective loss
+├── numeric/            # Protected evaluation
+├── pipeline/           # Population scheduler, proposers, validation
+├── population/         # Pareto frontier, equivalence checks
+├── primitives/         # Protected numeric primitives
+├── sandbox/            # Safe execution environment
+├── splits/             # Stratified/group-aware CV
+├── synthetic/          # Data generation protocol
+├── units/              # Dimensional type system
+└── runners/            # Feynman corpus runner
+
+data/                   # Feynman v1 benchmark data
+results_analysis/       # Analysis scripts and figures
+docs/                   # Additional documentation
+```
+
+**Note:** `tests/` and `implementation_discovery/` are excluded from the public repository.
+
+## Data
+
+The Feynman symbolic regression benchmark dataset (v1) used in this project is from the AI Feynman project. The dataset can be downloaded from: https://space.mit.edu/home/tegmark/aifeynman.html
+
+## Quick Start
+
+### LLM Backend
+
+The system uses **llama3.1** via Ollama for proposal generation. The code discovers the Ollama endpoint through the `OLLAMA_HOST` environment variable (default: `http://127.0.0.1:11434`). All proposals are generated by llama3.1 with deterministic decoding as specified in the theory document.
+
+```python
+# Optional: override the default Ollama endpoint
+import os
+os.environ["OLLAMA_HOST"] = "http://127.0.0.1:11434"
+```
+
+### Run on Feynman Benchmark
+
+```python
+from implementation.runners.run_feynman import FeynmanRunner
+from pathlib import Path
+
+# Initialize runner
+runner = FeynmanRunner(
+    out_root=Path("runs/my_run"),
+    N=200,      # Initial population size
+    K=30,       # Survivor pool size
+    J=10,       # Proposals per round
+    T=500,      # Number of rounds
+    eps=0.0,    # Pareto frontier tolerance
+    sigma=0.0,  # Noise level
+    seed=20250928
+)
+
+# Run on subset or full corpus
+runner.run_all(subset=["I.12.1", "I.12.5"])  # Specific equations
+# runner.run_all()  # Full corpus
+```
+
+### Use Individual Components
+
+```python
+from implementation.complexity import Complexity
+from implementation.units.system import UnitsChecker
+from implementation.acceptance.accept_formula import AcceptFormula
+import sympy as sp
+
+# Complexity functional
+C = Complexity()
+expr = C.parse("x**2 + y**2")
+c_min = C.C_min(expr)  # Canonical complexity
+
+# Units checker
+from implementation.units.dim import L, T
+checker = UnitsChecker({"x": L, "t": T})
+ok, dim, msg = checker.check_expr("x / t")  # velocity dimension
+
+# Acceptance harness
+acc = AcceptFormula()
+result = acc.accept(
+    f=sp.parse_expr("x**2"),
+    g=sp.parse_expr("x*x"),
+    variables=("x",)
+)
+print(result["accepted"], result["method"])  # True, "symbolic"
+```
+
+## Results Summary
+
+On the Feynman v1 benchmark (100 equations), using **llama3.1 via Ollama**:
+
+| Metric | Value |
+|--------|-------|
+| **Accept Rate** | 36% (36/100) |
+| **Method: Symbolic** | 36 |
+| **Method: Float Probe** | 0 |
+| **Method: Reject** | 64 |
+| **Artifact Integrity** | 100% |
+
+**Metric Distributions (all rows):**
+
+| Metric | Min | Median | Mean | Max |
+|--------|-----|--------|------|-----|
+| C (Complexity) | 0 | 2.0 | 8.77 | 83 |
+| E (Error) | 0.0 | 1.0 | 0.626 | 1.0 |
+| S (Interpretability) | 1e-15 | 0.5 | 0.255 | 0.5 |
+| L (Loss) | 0.0 | 0.4 | 0.204 | 0.4 |
+
+**By Chapter:**
+- Chapter I: 27.5% (14/51)
+- Chapter II: 41.2% (14/34)
+- Chapter III: 53.3% (8/15)
+
+See `Results.pdf` for complete analysis with figures.
+
+## Documentation
+
+- **`Theory.pdf`**: Formal specification of all components with propositions
+- **`Results.pdf`**: Empirical evaluation on Feynman v1 with reproducibility audit
+- **`docs/p16_ucb1_proof.md`**: UCB1 regret analysis for MCTS explainer
+
+## Key Design Principles
+
+1. **Determinism**: All randomness is controlled via seeded PRNGs; decoding seeds derived from SHA-256(session‖prompt‖index‖attempt). These seeds and decoding knobs are applied to llama3.1 via Ollama, ensuring runs are reproducible across machines given the same model digest.
+
+2. **Soundness**: Dimensional typing rejects inconsistent expressions; symbolic certificates have zero false negatives
+
+3. **Totality**: Protected numerics ensure all evaluations return finite float64 arrays
+
+4. **Reproducibility**: Manifest hashing, canonical JSONL events, and stable artifact schemas
+
+5. **Parsimony**: 2D Pareto frontier avoids needless complexity; scalarized loss L only for survivor ranking
+
+## Citation
+
+If you use this code, please cite:
+
+```bibtex
+@software{alkan2025formulaforge,
+  author = {Alkan, Cenk},
+  title = {LLM Formula Forge: Deterministic Symbolic Formula Discovery},
+  year = {2025},
+  publisher = {GitHub},
+  url = {https://github.com/calkan27/llm_formula_forge}
+}
+```
+
+## Contributing
+
+This is a research prototype. Issues and PRs welcome, especially for:
+- Expanding the protected primitive set
+- Alternative proposal mechanisms (genetic operators, retrieval)
+- Benchmarks beyond Feynman (Strogatz, physics simulations)
+- Visualization of Pareto frontiers and acceptance traces
+
+
+---
+
+**Status**: Research prototype implementing the theory in `Theory.pdf` and reproducing the results in `Results.pdf`. All core modules are production-quality with comprehensive docstrings. Test suite and discovery scripts excluded from public release.

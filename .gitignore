@@ -1,0 +1,14 @@
+tests/
+implementation_discovery/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.env
+.ipynb_checkpoints/
+.DS_Store
+runs/
+data/feynman-v1/raw/*.tar.gz
+
+runs/
+data/feynman-v1/raw/
